@@ -19,7 +19,7 @@ TEAM_NAME_MAP = {
     "デザイン": "design",
     "営業": "sales",
     "研究": "research",
-    # 追加OK
+    # 必要に応じて追加してください
 }
 
 @app.route("/slack/events", methods=["POST"])
@@ -37,14 +37,15 @@ def slack_events():
     print("=== イベント内容 ===")
     print(event)
 
-    # 通常メッセージのみ処理
-    if event.get("type") == "message" and "subtype" not in event:
+    # ユーザーの通常メッセージのみ処理（botの投稿は無視）
+    if event.get("type") == "message" and "subtype" not in event and "bot_id" not in event:
         text = event.get("text", "")
         user = event.get("user", "")
         print("=== メッセージ本文 ===")
-        print(text)
+        print(repr(text))
 
-        match = re.search(r"【業務連絡】(.+?)：(.+)", text)
+        match = re.search(r"【業務連絡】(.+?)：(.+)", text) 
+        # 先頭部分以外でもマッチしている場所があればいい
         if match:
             team_jp = match.group(1).strip()
             content = match.group(2).strip()
@@ -62,8 +63,9 @@ def slack_events():
                 for ch in result["channels"]:
                     if ch["name"] == channel_name:
                         channel_id = ch["id"]
+                        break
 
-                # チャンネルが存在しなければ作成＋説明投稿
+                # チャンネルがなければ作成
                 if not channel_id:
                     print(f"⚠️ チャンネル #{channel_name} が存在しない → 作成開始")
                     create_result = client.conversations_create(
@@ -73,7 +75,7 @@ def slack_events():
                     channel_id = create_result["channel"]["id"]
                     print(f"✅ チャンネル #{channel_name} を作成")
 
-                    # Botが参加
+                    # Botがチャンネルに参加
                     client.conversations_join(channel=channel_id)
                     print(f"✅ Botがチャンネルに参加")
 
@@ -84,7 +86,7 @@ def slack_events():
                     )
                     print(f"✅ 説明投稿完了")
 
-                # 業務連絡投稿
+                # 業務連絡を投稿
                 client.chat_postMessage(
                     channel=channel_id,
                     text=f"📢 <@{user}> より業務連絡：\n> {content}"
@@ -92,11 +94,14 @@ def slack_events():
                 print(f"✅ 業務連絡投稿完了 → #{channel_name}")
 
             except SlackApiError as e:
-                print(f"[Slack API エラー] {e.response['error']}")
+                print("[Slack API エラー発生]")
+                print(f"status code: {e.response.status_code}")
+                print("response body:", e.response.data)
         else:
             print("⚠️ 業務連絡の形式ではありません。処理スキップ")
 
     return "", 200
+
 
 if __name__ == "__main__":
     app.run(port=3000, debug=True)
