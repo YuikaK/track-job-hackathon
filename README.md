@@ -1,35 +1,77 @@
-# Slack 業務連絡自動振り分けボット
+# 業務連絡自動振り分けBot
 
-このプロジェクトでは、Slackのメッセージを監視し、「【業務連絡】チーム名：内容」という形式のメッセージを受け取ると、指定のチームごとにチャンネルを作成し、そのチャンネルに業務連絡を自動投稿するSlackボットを作った。
+Slackのメッセージを監視し、  
+「【業務連絡】チーム名：内容」の形式のメッセージを自動的に各チームごとのタスクチャンネルに振り分けるBotです。  
+指定チャンネルが存在しない場合は自動でチャンネルを作成し、説明メッセージを投稿します。
 
 ---
 
 ## 機能概要
 
-- SlackのEvents APIを利用し、メッセージイベントを受信
-- メッセージ本文が「【業務連絡】チーム名：内容」の形式であるかを判定
-- チーム名（日本語）から英語のチャンネル名へ変換（辞書で管理）
-- 対応するチャンネルが存在しなければ作成し、Botを参加させる
-- 業務連絡をチャンネルに投稿する
+- Slackのメッセージイベントを受信
+- 「【業務連絡】」で始まるメッセージを判別
+- チーム名（日→英）に対応したチャンネルへ投稿
+- チャンネルがなければBotが作成し、説明文を投稿
+- Botの投稿は再処理せずスキップ
+- チーム名の変換辞書は自由に拡張可能
 
 ---
 
-## 動作環境
+## 動作環境・前提
 
-- Python 3.7+
-- Flask
-- slack_sdk
-- python-dotenv
+- Python 3.10 以上推奨
+- SlackワークスペースおよびBotトークンを用意済み
+- ngrok 等でローカルのFlaskサーバーを外部公開できる環境
+- VSCode等の開発環境
 
 ---
 
-## セットアップ方法
+## セットアップ手順
 
-1. リポジトリをクローンまたはダウンロードする。
+1. リポジトリをクローン／ダウンロード
 
-2. Pythonの仮想環境を作成し、アクティベートする（任意）。
+2. 必要パッケージのインストール
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # macOS/Linux
-   venv\Scripts\activate     # Windows
+```bash
+pip install flask slack_sdk python-dotenv
+
+3. `.env`ファイルの作成
+
+プロジェクトのルートディレクトリに `.env` ファイルを作成し、Slack Bot Tokenを記載します。
+
+```env
+SLACK_BOT_TOKEN=xoxb-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+4. Slackアプリの設定
+
+### OAuth & Permissions
+
+- Bot Token Scopes に以下の権限を追加してください：
+  - `chat:write`
+  - `channels:read`
+  - `channels:join`
+
+- 変更後は必ず「Install App to Workspace」から再インストールを行い、Botトークンを有効化してください。
+
+### Event Subscriptions
+
+- 「Enable Events」をONにします。
+- Request URL に、ngrokで公開したURLの `/slack/events` エンドポイントを設定します。  
+  例: `https://xxxxxx.ngrok.io/slack/events`
+- 「Subscribe to bot events」に `message.channels` を追加してください。
+
+---
+5. Flaskアプリの起動
+
+```bash
+python app.py
+
+6. ngrokでローカルサーバーを公開
+
+```bash
+ngrok http 3000
+
+7. 動作確認
+
+Slackの任意のチャンネルに以下の形式でメッセージを投稿します。
+```【業務連絡】企画：テストメッセージ
