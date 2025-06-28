@@ -33,7 +33,7 @@ Slackのメッセージを監視し、
 2. 必要パッケージのインストール
 
 ```bash
-pip install flask slack_sdk python-dotenv
+pip install flask slack_sdk python-dotenv```
 
 3. `.env`ファイルの作成
 
