@@ -28,12 +28,13 @@ Slackのメッセージを監視し、
 
 ## セットアップ手順
 
-1. リポジトリをクローン／ダウンロード
+1. リポジトリをクローン/ダウンロード
 
 2. 必要パッケージのインストール
 
 ```bash
-pip install flask slack_sdk python-dotenv```
+pip install flask slack_sdk python-dotenv
+```
 
 3. `.env`ファイルの作成
 
@@ -41,19 +42,25 @@ pip install flask slack_sdk python-dotenv```
 
 ```env
 SLACK_BOT_TOKEN=xoxb-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
 
 4. Slackアプリの設定
 
-### OAuth & Permissions
+OAuth & Permissions
 
 - Bot Token Scopes に以下の権限を追加してください：
   - `chat:write`
   - `channels:read`
   - `channels:join`
+  - `channels:history`
+  - `channels:manage`
+  - `chat:write`
+  - `chat:write.public`
+  - `users:read`
 
 - 変更後は必ず「Install App to Workspace」から再インストールを行い、Botトークンを有効化してください。
 
-### Event Subscriptions
+Event Subscriptions
 
 - 「Enable Events」をONにします。
 - Request URL に、ngrokで公開したURLの `/slack/events` エンドポイントを設定します。  
@@ -65,13 +72,17 @@ SLACK_BOT_TOKEN=xoxb-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ```bash
 python app.py
+```
 
 6. ngrokでローカルサーバーを公開
 
 ```bash
 ngrok http 3000
+```
 
 7. 動作確認
 
 Slackの任意のチャンネルに以下の形式でメッセージを投稿します。
-```【業務連絡】企画：テストメッセージ
+```
+【業務連絡】企画：テストメッセージ
+```
