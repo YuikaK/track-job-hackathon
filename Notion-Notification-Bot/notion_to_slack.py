@@ -16,9 +16,9 @@ CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")
 
 # 担当者名 → SlackユーザーID のマップ（必要に応じて追加）
 USER_MAP = {
-    "おおくぼひおり": "U0944FG0MU0",
-    "yuika": "U0939JVQ6D9",
-    "KAWAMURATamaki": "U0944FJ4QHW"
+    "太郎": "taroID",
+    "次郎": "jiroID",
+    "三郎": "saburoID"
 }
 
 # 締切が今日〜3日後のタスクを取得
