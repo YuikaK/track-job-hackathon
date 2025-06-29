@@ -1,88 +1,76 @@
-# 業務連絡自動振り分けBot
+# track-job-hackathon
 
-Slackのメッセージを監視し、  
-「【業務連絡】チーム名：内容」の形式のメッセージを自動的に各チームごとのタスクチャンネルに振り分けるBotです。  
-指定チャンネルが存在しない場合は自動でチャンネルを作成し、説明メッセージを投稿します。
-
----
-
-## 機能概要
-
-- Slackのメッセージイベントを受信
-- 「【業務連絡】」で始まるメッセージを判別
-- チーム名（日→英）に対応したチャンネルへ投稿
-- チャンネルがなければBotが作成し、説明文を投稿
-- Botの投稿は再処理せずスキップ
-- チーム名の変換辞書は自由に拡張可能
+このリポジトリは、Track Job Hackathon 向けに開発した3つのミニプロジェクトをまとめたものです。  
+コミュニケーションの効率化、タスク管理の自動化、日常的な金銭管理の手助けを目的とした実用的なツールを作成しました。
 
 ---
 
-## 動作環境・前提
+## 🔧 プロジェクト一覧
 
-- Python 3.10 以上推奨
-- SlackワークスペースおよびBotトークンを用意済み
-- ngrok 等でローカルのFlaskサーバーを外部公開できる環境
-- VSCode等の開発環境
+### 1. 📣 業務連絡自動振り分けBot（`auto-routing-bot/`）
+
+Slackのメッセージを監視し、「【業務連絡】チーム名：内容」という形式のメッセージを検出して、該当するチームのチャンネルへ自動的に投稿するBotです。チャンネルが存在しない場合はBotが自動作成し、説明文を投稿します。
+
+- 使用技術：Python, Flask, Slack SDK
+- 特徴：
+  - メッセージを解析し、対応するチャンネルへ振り分け
+  - チャンネルの自動作成と説明投稿
+  - チーム名の変換辞書で柔軟な対応が可能
+
+👉 詳細は [`auto-routing-bot/README.md`](./auto-routing-bot/README.md) をご覧ください。
+
+---
+
+### 2. 📅 Notionタスク進捗通知Bot（`notion-notification-bot/`）
+
+Notionのタスクデータベースから、期限が迫っているタスクや期限切れのタスクを取得し、担当者のメンション付きでSlackに通知するBotです。チーム内のタスク進捗管理を可視化・効率化します。
+
+- 使用技術：Python, Notion API, Slack SDK
+- 特徴：
+  - 「期限が今日〜3日後まで」「期限切れ」のタスクを通知
+  - 担当者名からSlackユーザーIDへの変換・メンション
+  - ロールアップされた進捗率の表示にも対応
+
+👉 詳細は [`notion-notification-bot/README.md`](./notion-notification-bot/README.md) をご覧ください。
 
 ---
 
-## セットアップ手順
+### 3. 💰 割り勘アプリ（`warikan_app/`）
 
-1. リポジトリをクローン/ダウンロード
+部活・サークル・アルバイト先などで発生する複数支出の割り勘を、人数や日数に応じて柔軟に計算できるHTMLベースのアプリです。誰が誰にいくら払えばいいかを明示的にサポートします。
 
-2. 必要パッケージのインストール
+- 使用技術：HTML（＋任意でCSS/JS）
+- 特徴：
+  - 人数と日数を考慮した柔軟な割り勘計算
+  - 人ごとの日数の違いにも対応
+  - 題目ごとに割り勘を管理可能
 
-```bash
-pip install flask slack_sdk python-dotenv
-```
-
-3. `.env`ファイルの作成
-
-プロジェクトのルートディレクトリに `.env` ファイルを作成し、Slack Bot Tokenを記載します。
-
-```env
-SLACK_BOT_TOKEN=xoxb-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-4. Slackアプリの設定
-
-OAuth & Permissions
-
-- Bot Token Scopes に以下の権限を追加してください：
-  - `chat:write`
-  - `channels:read`
-  - `channels:join`
-  - `channels:history`
-  - `channels:manage`
-  - `chat:write`
-  - `chat:write.public`
-  - `users:read`
-
-- 変更後は必ず「Install App to Workspace」から再インストールを行い、Botトークンを有効化してください。
-
-Event Subscriptions
-
-- 「Enable Events」をONにします。
-- Request URL に、ngrokで公開したURLの `/slack/events` エンドポイントを設定します。  
-  例: `https://xxxxxx.ngrok.io/slack/events`
-- 「Subscribe to bot events」に `message.channels` を追加してください。
+👉 詳細は [`warikan_app/README.md`](./warikan_app/README.md) をご覧ください。
 
 ---
-5. Flaskアプリの起動
 
-```bash
-python app.py
+## 📁 ディレクトリ構成
+
+```
+track-job-hackathon/
+├── auto-routing-bot/
+│   ├── app.py
+│   ├── requirements.txt
+│   └── README.md
+├── notion-notification-bot/
+│   ├── notion_to_slack.py
+│   └── README.md
+├── warikan_app/
+│   ├── warikan.html
+│   └── README.md
+└── README.md  ← このファイル
 ```
 
-6. ngrokでローカルサーバーを公開
+---
 
-```bash
-ngrok http 3000
-```
+## 🛠 動作環境
 
-7. 動作確認
-
-Slackの任意のチャンネルに以下の形式でメッセージを投稿します。
-```
-【業務連絡】企画：テストメッセージ
-```
+- Python 3.7〜3.10 以上
+- Slack ワークスペース & Bot 設定済み
+- Notion API インテグレーション作成済み
+- HTMLはブラウザで直接開いて利用可能
