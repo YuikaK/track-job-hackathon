@@ -7,26 +7,28 @@
     <style>
         /* ここにCSSを記述します */
         body { font-family: sans-serif; margin: 20px; }
-        .container { max-width: 800px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .container { max-width: 800px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px;}
         input[type="text"], input[type="number"] { padding: 8px; margin-bottom: 10px; width: calc(100% - 16px); }
-        button { padding: 10px 15px; margin-right: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 5px; background-color: #f9f9f9; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        button {position: relative; display: inline-block; font-weight: bold; padding: 0.25em 0.5em; text-decoration: none; color: #30bdf5; background: #ECECEC; transition: .4s; margin-left: 2px; margin-top: 2px;}
+        button:hover {background: #de81c7; color: white; }
+        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 5px; background-color: #f9f9f9; border: solid 4px #1dc1d6; box-shadow: 0 3px 4px rgba(0, 0, 0, 0.32);/*影*/ }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px;}
+        th, td { border: 5px solid #ddd; padding: 8px; text-align: left;}
         th { background-color: #f2f2f2; }
+        hr {border: 1px solid #090909; box-shadow: 0 3px 4px rgba(0, 0, 0, 0.32);/*影*/}
     </style>
 </head>
+
 <body>
     <div class="container">
-        <h1>スマート割り勘アプリ</h1>
+        <h1>割り勘アプリ</h1>
 
         <div class="section">
             <h2>割り勘プロジェクト管理</h2>
             <input type="text" id="newBillTitle" placeholder="新しい割り勘の題名">
             <button onclick="createBillProject()">新しい割り勘を作成</button>
             <select id="billProjectSelector" onchange="loadBillProject()">
-                <option value="">割り勘を選択...</option>
+                <option value="">割り勘を選択</option>
             </select>
             <button onclick="deleteBillProject()">選択中の割り勘を削除</button>
         </div>
@@ -34,16 +36,14 @@
         <hr>
 
         <div id="currentBillProject" style="display:none;">
-            <h2><span id="currentBillTitleDisplay"></span> の割り勘</h2>
+            <h2><span id="currentBillTitleDisplay"></span>の割り勘</h2>
 
             <div class="section">
                 <h3>参加者</h3>
                 <input type="text" id="newParticipantName" placeholder="参加者名">
                 <button onclick="addParticipant()">参加者を追加</button>
                 <div id="participantList"></div>
-            </div>
-
-            <div class="section">
+                
                 <h3>支出の登録</h3>
                 <input type="text" id="expenseName" placeholder="支出名">
                 <input type="number" id="expenseAmount" placeholder="金額" min="0">
@@ -61,9 +61,9 @@
                 <div id="paymentInstructions"></div>
             </div>
 
-            <div class="section">
+            <!--<div class="section">
                 <button onclick="goToSettlementStatusPage()">精算状況を確認</button>
-            </div>
+            </div>-->
         </div>
 
         <div id="settlementStatusPage" style="display:none;">
@@ -217,6 +217,7 @@
             billProjects[currentBillProjectId].participants.forEach(participant => {
                 const div = document.createElement('div');
                 div.textContent = participant;
+                
                 const removeBtn = document.createElement('button');
                 removeBtn.textContent = '削除';
                 removeBtn.onclick = () => removeParticipant(participant);
@@ -488,7 +489,7 @@
         // ==========================================================
         // 精算状況管理ページ
         // ==========================================================
-
+/*
         function goToSettlementStatusPage() {
             if (!currentBillProjectId) {
                 alert('割り勘プロジェクトを選択してください。');
@@ -543,7 +544,7 @@
             billProjects[currentBillProjectId].settlementStatus[participantName].paid = isChecked;
             saveAllBillProjects();
             renderSettlementStatus(); // チェック状態を再描画して更新を反映
-        }
+        }*/
     </script>
 </body>
 </html>
