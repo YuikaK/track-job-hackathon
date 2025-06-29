@@ -17,7 +17,7 @@ Slackのメッセージを監視し、「【業務連絡】チーム名：内容
   - チャンネルの自動作成と説明投稿
   - チーム名の変換辞書で柔軟な対応が可能
 
-👉 詳細は [`auto-routing-bot/README.md`](./auto-routing-bot/README.md) をご覧ください。
+👉 詳細は [`Auto-Routing-Bot/README.md`](./Auto-Routing-Bot/README.md) をご覧ください。
 
 ---
 
@@ -31,7 +31,7 @@ Notionのタスクデータベースから、期限が迫っているタスク�
   - 担当者名からSlackユーザーIDへの変換・メンション
   - ロールアップされた進捗率の表示にも対応
 
-👉 詳細は [`notion-notification-bot/README.md`](./notion-notification-bot/README.md) をご覧ください。
+👉 詳細は [`Notion-Notification-Bot/README.md`](./Notion-Notification-Bot/README.md) をご覧ください。
 
 ---
 
