@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スマート割り勘アプリ</title>
+    <style>
+        /* ここにCSSを記述します */
+        body { font-family: sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        input[type="text"], input[type="number"] { padding: 8px; margin-bottom: 10px; width: calc(100% - 16px); }
+        button { padding: 10px 15px; margin-right: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 5px; background-color: #f9f9f9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>スマート割り勘アプリ</h1>
+
+        <div class="section">
+            <h2>割り勘プロジェクト管理</h2>
+            <input type="text" id="newBillTitle" placeholder="新しい割り勘の題名">
+            <button onclick="createBillProject()">新しい割り勘を作成</button>
+            <select id="billProjectSelector" onchange="loadBillProject()">
+                <option value="">割り勘を選択...</option>
+            </select>
+            <button onclick="deleteBillProject()">選択中の割り勘を削除</button>
+        </div>
+
+        <hr>
+
+        <div id="currentBillProject" style="display:none;">
+            <h2><span id="currentBillTitleDisplay"></span> の割り勘</h2>
+
+            <div class="section">
+                <h3>参加者</h3>
+                <input type="text" id="newParticipantName" placeholder="参加者名">
+                <button onclick="addParticipant()">参加者を追加</button>
+                <div id="participantList"></div>
+            </div>
+
+            <div class="section">
+                <h3>支出の登録</h3>
+                <input type="text" id="expenseName" placeholder="支出名">
+                <input type="number" id="expenseAmount" placeholder="金額" min="0">
+                <label><input type="checkbox" id="isByDays" checked> 日数で割り勘する</label><br>
+                <label>支払者:</label>
+                <select id="paidBy"></select>
+                <button onclick="addExpense()">支出を追加</button>
+                <div id="expenseList"></div>
+            </div>
+
+            <div class="section">
+                <h3>精算結果</h3>
+                <button onclick="calculateSettlement()">精算を計算</button>
+                <div id="settlementResult"></div>
+                <div id="paymentInstructions"></div>
+            </div>
+
+            <div class="section">
+                <button onclick="goToSettlementStatusPage()">精算状況を確認</button>
+            </div>
+        </div>
+
+        <div id="settlementStatusPage" style="display:none;">
+            <h2><span id="statusPageBillTitle"></span> の精算状況</h2>
+            <div id="statusList"></div>
+            <button onclick="goBackToMainPage()">メインページに戻る</button>
+        </div>
+    </div>
+
+    <script>
+        // ここにJavaScriptコードを記述します
+        let billProjects = {}; // 全ての割り勘プロジェクトを格納するオブジェクト
+        let currentBillProjectId = null; // 現在選択中の割り勘プロジェクトのID
+
+        // 初期ロード時にLocalStorageからデータを読み込む
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAllBillProjects();
+            updateBillProjectSelector();
+        });
+
+        // ==========================================================
+        // 割り勘プロジェクト管理
+        // ==========================================================
+
+        function loadAllBillProjects() {
+            const storedProjects = localStorage.getItem('billProjects');
+            if (storedProjects) {
+                billProjects = JSON.parse(storedProjects);
+            }
+        }
+
+        function saveAllBillProjects() {
+            localStorage.setItem('billProjects', JSON.stringify(billProjects));
+        }
+
+        function generateUniqueId() {
+            return '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function createBillProject() {
+            const titleInput = document.getElementById('newBillTitle');
+            const title = titleInput.value.trim();
+            if (title) {
+                const id = generateUniqueId();
+                billProjects[id] = {
+                    title: title,
+                    participants: [],
+                    expenses: [],
+                    settlementStatus: {} // 支払い状況を管理
+                };
+                saveAllBillProjects();
+                titleInput.value = '';
+                updateBillProjectSelector();
+                selectBillProject(id);
+            } else {
+                alert('割り勘の題名を入力してください。');
+            }
+        }
+
+        function updateBillProjectSelector() {
+            const selector = document.getElementById('billProjectSelector');
+            selector.innerHTML = '<option value="">割り勘を選択...</option>';
+            for (const id in billProjects) {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = billProjects[id].title;
+                selector.appendChild(option);
+            }
+            if (currentBillProjectId && billProjects[currentBillProjectId]) {
+                selector.value = currentBillProjectId;
+            }
+        }
+
+        function loadBillProject() {
+            const selector = document.getElementById('billProjectSelector');
+            const selectedId = selector.value;
+            if (selectedId) {
+                selectBillProject(selectedId);
+            } else {
+                document.getElementById('currentBillProject').style.display = 'none';
+                currentBillProjectId = null;
+            }
+        }
+
+        function selectBillProject(id) {
+            currentBillProjectId = id;
+            document.getElementById('currentBillTitleDisplay').textContent = billProjects[id].title;
+            document.getElementById('currentBillProject').style.display = 'block';
+            renderParticipants();
+            renderExpenses();
+            updatePaidBySelect();
+            // 精算結果をクリア
+            document.getElementById('settlementResult').innerHTML = '';
+            document.getElementById('paymentInstructions').innerHTML = '';
+        }
+
+        function deleteBillProject() {
+            if (currentBillProjectId && confirm('本当にこの割り勘を削除しますか？')) {
+                delete billProjects[currentBillProjectId];
+                saveAllBillProjects();
+                currentBillProjectId = null;
+                updateBillProjectSelector();
+                document.getElementById('currentBillProject').style.display = 'none';
+            } else if (!currentBillProjectId) {
+                alert('削除する割り勘を選択してください。');
+            }
+        }
+
+        // ==========================================================
+        // 参加者管理
+        // ==========================================================
+
+        function addParticipant() {
+            if (!currentBillProjectId) {
+                alert('割り勘プロジェクトを選択してください。');
+                return;
+            }
+            const nameInput = document.getElementById('newParticipantName');
+            const name = nameInput.value.trim();
+            if (name && !billProjects[currentBillProjectId].participants.includes(name)) {
+                billProjects[currentBillProjectId].participants.push(name);
+                // 新しい参加者の精算状況を初期化
+                billProjects[currentBillProjectId].settlementStatus[name] = {};
+                saveAllBillProjects();
+                nameInput.value = '';
+                renderParticipants();
+                updatePaidBySelect();
+            } else if (name) {
+                alert('その名前はすでに登録されています。');
+            } else {
+                alert('参加者名を入力してください。');
+            }
+        }
+
+        function removeParticipant(nameToRemove) {
+            if (!currentBillProjectId) return;
+            billProjects[currentBillProjectId].participants = billProjects[currentBillProjectId].participants.filter(name => name !== nameToRemove);
+            // 参加者に関連する支出や精算状況もクリーンアップする必要があるが、今回は簡易的に参加者リストから削除のみ
+            // 実際には、その参加者が支払った支出や、日数割り勘の設定からその参加者を削除する処理も必要
+            delete billProjects[currentBillProjectId].settlementStatus[nameToRemove]; // 精算状況も削除
+            saveAllBillProjects();
+            renderParticipants();
+            updatePaidBySelect();
+            renderExpenses(); // 日数設定のために再描画
+        }
+
+        function renderParticipants() {
+            if (!currentBillProjectId) return;
+            const participantListDiv = document.getElementById('participantList');
+            participantListDiv.innerHTML = '';
+            billProjects[currentBillProjectId].participants.forEach(participant => {
+                const div = document.createElement('div');
+                div.textContent = participant;
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = '削除';
+                removeBtn.onclick = () => removeParticipant(participant);
+                div.appendChild(removeBtn);
+                participantListDiv.appendChild(div);
+            });
+        }
+
+        // 支払い者選択肢を更新
+        function updatePaidBySelect() {
+            if (!currentBillProjectId) return;
+            const paidBySelect = document.getElementById('paidBy');
+            paidBySelect.innerHTML = '';
+            billProjects[currentBillProjectId].participants.forEach(participant => {
+                const option = document.createElement('option');
+                option.value = participant;
+                option.textContent = participant;
+                paidBySelect.appendChild(option);
+            });
+        }
+
+        // ==========================================================
+        // 支出管理
+        // ==========================================================
+
+        function addExpense() {
+            if (!currentBillProjectId) {
+                alert('割り勘プロジェクトを選択してください。');
+                return;
+            }
+            const expenseNameInput = document.getElementById('expenseName');
+            const expenseAmountInput = document.getElementById('expenseAmount');
+            const isByDaysCheckbox = document.getElementById('isByDays');
+            const paidBySelect = document.getElementById('paidBy');
+
+            const name = expenseNameInput.value.trim();
+            const amount = parseFloat(expenseAmountInput.value);
+            const isByDays = isByDaysCheckbox.checked;
+            const paidBy = paidBySelect.value;
+
+            if (name && !isNaN(amount) && amount > 0 && paidBy) {
+                const expense = {
+                    name: name,
+                    amount: amount,
+                    isByDays: isByDays,
+                    paidBy: paidBy,
+                    days: {} // 日数割り勘の場合、各参加者の日数をここに格納
+                };
+
+                if (isByDays) {
+                    // 日数割り勘の場合、参加者全員の日数を初期値1で設定
+                    billProjects[currentBillProjectId].participants.forEach(p => {
+                        expense.days[p] = 1;
+                    });
+                }
+
+                billProjects[currentBillProjectId].expenses.push(expense);
+                saveAllBillProjects();
+                expenseNameInput.value = '';
+                expenseAmountInput.value = '';
+                renderExpenses();
+            } else {
+                alert('支出名、金額、支払い者を入力してください。');
+            }
+        }
+
+        function removeExpense(index) {
+            if (!currentBillProjectId) return;
+            billProjects[currentBillProjectId].expenses.splice(index, 1);
+            saveAllBillProjects();
+            renderExpenses();
+        }
+
+        function updateExpenseDays(expenseIndex, participantName, value) {
+            if (!currentBillProjectId) return;
+            const days = parseInt(value);
+            if (!isNaN(days) && days >= 0) {
+                billProjects[currentBillProjectId].expenses[expenseIndex].days[participantName] = days;
+                saveAllBillProjects();
+            }
+        }
+
+        function renderExpenses() {
+            if (!currentBillProjectId) return;
+            const expenseListDiv = document.getElementById('expenseList');
+            expenseListDiv.innerHTML = '';
+
+            const expenses = billProjects[currentBillProjectId].expenses;
+            const participants = billProjects[currentBillProjectId].participants;
+
+            if (expenses.length === 0) {
+                expenseListDiv.innerHTML = '<p>まだ支出がありません。</p>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            let tableHTML = `
+                <thead>
+                    <tr>
+                        <th>支出名</th>
+                        <th>金額</th>
+                        <th>支払者</th>
+                        <th>日数割り勘</th>
+            `;
+            // 日数割り勘が選択された支出の場合、参加者ごとの日数入力欄を追加
+            expenses.forEach(expense => {
+                if (expense.isByDays) {
+                    participants.forEach(p => {
+                        tableHTML += `<th>${p} (日数)</th>`;
+                    });
+                }
+            });
+            tableHTML += `<th>操作</th></tr></thead><tbody>`;
+
+            expenses.forEach((expense, index) => {
+                tableHTML += `<tr>
+                    <td>${expense.name}</td>
+                    <td>${expense.amount}円</td>
+                    <td>${expense.paidBy}</td>
+                    <td>${expense.isByDays ? 'はい' : 'いいえ'}</td>
+                `;
+                if (expense.isByDays) {
+                    participants.forEach(p => {
+                        const currentDays = expense.days[p] !== undefined ? expense.days[p] : 0;
+                        tableHTML += `
+                            <td>
+                                <input type="number" min="0" value="${currentDays}"
+                                onchange="updateExpenseDays(${index}, '${p}', this.value)">
+                            </td>
+                        `;
+                    });
+                }
+                tableHTML += `
+                    <td><button onclick="removeExpense(${index})">削除</button></td>
+                </tr>`;
+            });
+            tableHTML += `</tbody>`;
+            table.innerHTML = tableHTML;
+            expenseListDiv.appendChild(table);
+        }
+
+        // ==========================================================
+        // 精算計算ロジック
+        // ==========================================================
+
+        function calculateSettlement() {
+            if (!currentBillProjectId) {
+                alert('割り勘プロジェクトを選択してください。');
+                return;
+            }
+
+            const participants = billProjects[currentBillProjectId].participants;
+            const expenses = billProjects[currentBillProjectId].expenses;
+            const settlementResultDiv = document.getElementById('settlementResult');
+            const paymentInstructionsDiv = document.getElementById('paymentInstructions');
+            settlementResultDiv.innerHTML = '';
+            paymentInstructionsDiv.innerHTML = '';
+
+            if (participants.length === 0) {
+                settlementResultDiv.innerHTML = '<p>参加者が登録されていません。</p>';
+                return;
+            }
+            if (expenses.length === 0) {
+                settlementResultDiv.innerHTML = '<p>支出が登録されていません。</p>';
+                return;
+            }
+
+            // 各参加者の支払い済み合計額と、本来支払うべき額を計算
+            const totalPaid = {}; // 各参加者が支払った合計額
+            const totalOwed = {}; // 各参加者が本来支払うべき合計額
+
+            participants.forEach(p => {
+                totalPaid[p] = 0;
+                totalOwed[p] = 0;
+            });
+
+            expenses.forEach(expense => {
+                totalPaid[expense.paidBy] += expense.amount;
+
+                if (expense.isByDays) {
+                    let totalDays = 0;
+                    participants.forEach(p => {
+                        totalDays += (expense.days[p] || 0); // 参加日数が設定されていない場合は0とする
+                    });
+
+                    if (totalDays === 0) {
+                        // 全員の参加日数が0の場合は、均等割り勘として処理するなどの例外処理
+                        // ここでは、一旦スキップするか、エラーメッセージを表示
+                        console.warn(`支出 '${expense.name}' は参加日数が設定されていないか、全員0です。`);
+                        // もしくは、均等割り勘として処理
+                        const amountPerPerson = expense.amount / participants.length;
+                        participants.forEach(p => {
+                            totalOwed[p] += amountPerPerson;
+                        });
+                        return;
+                    }
+
+                    participants.forEach(p => {
+                        const days = expense.days[p] || 0;
+                        totalOwed[p] += (expense.amount * (days / totalDays));
+                    });
+                } else {
+                    // 人数で割り勘
+                    const amountPerPerson = expense.amount / participants.length;
+                    participants.forEach(p => {
+                        totalOwed[p] += amountPerPerson;
+                    });
+                }
+            });
+
+            // 各参加者の差額を計算 (支払った額 - 支払うべき額)
+            const balances = {};
+            participants.forEach(p => {
+                balances[p] = totalPaid[p] - totalOwed[p];
+            });
+
+            // 精算結果を表示
+            let resultHTML = '<h3>各人の差額:</h3><table><thead><tr><th>名前</th><th>差額 (円)</th><th>状態</th></tr></thead><tbody>';
+            participants.forEach(p => {
+                const balance = balances[p];
+                const status = balance >= 0 ? '受け取り' : '支払い';
+                resultHTML += `<tr><td>${p}</td><td>${balance.toFixed(0)}</td><td>${status}</td></tr>`;
+            });
+            resultHTML += '</tbody></table>';
+            settlementResultDiv.innerHTML = resultHTML;
+
+            // 誰が誰に支払うべきかを計算 (シンプルな方法)
+            const payers = []; // お金を支払う必要がある人
+            const receivers = []; // お金を受け取る必要がある人
+
+            participants.forEach(p => {
+                if (balances[p] < 0) {
+                    payers.push({ name: p, amount: Math.abs(balances[p]) });
+                } else if (balances[p] > 0) {
+                    receivers.push({ name: p, amount: balances[p] });
+                }
+            });
+
+            payers.sort((a, b) => b.amount - a.amount); // 多い額を支払う人から
+            receivers.sort((a, b) => b.amount - a.amount); // 多い額を受け取る人から
+
+            let instructionsHTML = '<h3>精算指示:</h3><ul>';
+            let payerIndex = 0;
+            let receiverIndex = 0;
+
+            while (payerIndex < payers.length && receiverIndex < receivers.length) {
+                const payer = payers[payerIndex];
+                const receiver = receivers[receiverIndex];
+
+                const transferAmount = Math.min(payer.amount, receiver.amount);
+
+                if (transferAmount > 0) {
+                    instructionsHTML += `<li><strong>${payer.name}</strong> が <strong>${receiver.name}</strong> に <strong>${transferAmount.toFixed(0)}円</strong> 支払う。</li>`;
+                    payer.amount -= transferAmount;
+                    receiver.amount -= transferAmount;
+                }
+
+                if (payer.amount <= 0.01) { // 誤差を考慮
+                    payerIndex++;
+                }
+                if (receiver.amount <= 0.01) { // 誤差を考慮
+                    receiverIndex++;
+                }
+            }
+            instructionsHTML += '</ul>';
+            paymentInstructionsDiv.innerHTML = instructionsHTML;
+        }
+
+        // ==========================================================
+        // 精算状況管理ページ
+        // ==========================================================
+
+        function goToSettlementStatusPage() {
+            if (!currentBillProjectId) {
+                alert('割り勘プロジェクトを選択してください。');
+                return;
+            }
+            document.getElementById('currentBillProject').style.display = 'none';
+            document.getElementById('settlementStatusPage').style.display = 'block';
+            document.getElementById('statusPageBillTitle').textContent = billProjects[currentBillProjectId].title;
+            renderSettlementStatus();
+        }
+
+        function goBackToMainPage() {
+            document.getElementById('settlementStatusPage').style.display = 'none';
+            document.getElementById('currentBillProject').style.display = 'block';
+        }
+
+        function renderSettlementStatus() {
+            if (!currentBillProjectId) return;
+            const statusListDiv = document.getElementById('statusList');
+            statusListDiv.innerHTML = '';
+
+            const participants = billProjects[currentBillProjectId].participants;
+            const settlementStatus = billProjects[currentBillProjectId].settlementStatus;
+
+            if (participants.length === 0) {
+                statusListDiv.innerHTML = '<p>参加者が登録されていません。</p>';
+                return;
+            }
+
+            let statusHTML = '<table><thead><tr><th>名前</th><th>支払い状況</th></tr></thead><tbody>';
+            participants.forEach(p => {
+                const isPaid = settlementStatus[p] && settlementStatus[p].paid === true;
+                statusHTML += `
+                    <tr>
+                        <td>${p}</td>
+                        <td>
+                            <input type="checkbox" id="status-${p}" ${isPaid ? 'checked' : ''} onchange="toggleSettlementStatus('${p}', this.checked)">
+                            <label for="status-${p}">${isPaid ? '支払い済み' : '未払い'}</label>
+                        </td>
+                    </tr>
+                `;
+            });
+            statusHTML += '</tbody></table>';
+            statusListDiv.innerHTML = statusHTML;
+        }
+
+        function toggleSettlementStatus(participantName, isChecked) {
+            if (!currentBillProjectId) return;
+            if (!billProjects[currentBillProjectId].settlementStatus[participantName]) {
+                billProjects[currentBillProjectId].settlementStatus[participantName] = {};
+            }
+            billProjects[currentBillProjectId].settlementStatus[participantName].paid = isChecked;
+            saveAllBillProjects();
+            renderSettlementStatus(); // チェック状態を再描画して更新を反映
+        }
+    </script>
+</body>
+</html>
